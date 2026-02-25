@@ -2,17 +2,16 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { X, Send, Trash2, Minus } from "lucide-react";
+import { Send, Minus, ArrowLeft } from "lucide-react";
 import StarFourIcon from "./icons/star-four";
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import AIChatSessions, { type AiSession } from "./ai-chat-sessions";
 
 interface AIChatAreaProps {
   onClose: () => void;
 }
-
-const chatTransport = new DefaultChatTransport({ api: "/api/chat" });
 
 /** Extract all text from a UIMessage's parts array */
 function getMessageText(parts: Array<{ type: string; text?: string }>): string {
@@ -23,6 +22,23 @@ function getMessageText(parts: Array<{ type: string; text?: string }>): string {
 }
 
 export default function AIChatArea({ onClose }: AIChatAreaProps) {
+  const [view, setView] = useState<"sessions" | "chat">("sessions");
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<AiSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+
+  const activeSessionIdRef = useRef(activeSessionId);
+  activeSessionIdRef.current = activeSessionId;
+
+  const chatTransport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: () => ({ sessionId: activeSessionIdRef.current }),
+      }),
+    []
+  );
+
   const { messages, sendMessage, setMessages, status } = useChat({
     transport: chatTransport,
   });
@@ -38,8 +54,94 @@ export default function AIChatArea({ onClose }: AIChatAreaProps) {
   }, [messages]);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    if (view === "chat") {
+      inputRef.current?.focus();
+    }
+  }, [view]);
+
+  // Fetch sessions list
+  const fetchSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    try {
+      const res = await fetch("/api/ai-chat/sessions");
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch AI sessions", e);
+    } finally {
+      setSessionsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  // Select a session — load its messages
+  const handleSelectSession = useCallback(
+    async (id: string) => {
+      setActiveSessionId(id);
+      setView("chat");
+      try {
+        const res = await fetch(`/api/ai-chat/sessions/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const uiMessages = data.messages.map(
+            (msg: { id: string; role: string; content: string }) => ({
+              id: msg.id,
+              role: msg.role as "user" | "assistant",
+              parts: [{ type: "text", text: msg.content }],
+            })
+          );
+          setMessages(uiMessages);
+        }
+      } catch (e) {
+        console.error("Failed to load session messages", e);
+      }
+    },
+    [setMessages]
+  );
+
+  // Create a new session
+  const handleNewChat = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ai-chat/sessions", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveSessionId(data.id);
+        setMessages([]);
+        setView("chat");
+      }
+    } catch (e) {
+      console.error("Failed to create AI session", e);
+    }
+  }, [setMessages]);
+
+  // Delete a session
+  const handleDeleteSession = useCallback(
+    async (id: string) => {
+      try {
+        await fetch(`/api/ai-chat/sessions/${id}`, { method: "DELETE" });
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+        if (activeSessionId === id) {
+          setActiveSessionId(null);
+          setMessages([]);
+          setView("sessions");
+        }
+      } catch (e) {
+        console.error("Failed to delete AI session", e);
+      }
+    },
+    [activeSessionId, setMessages]
+  );
+
+  // Back to sessions list
+  const handleBackToSessions = useCallback(() => {
+    setView("sessions");
+    fetchSessions(); // Refresh to pick up auto-generated titles
+  }, [fetchSessions]);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -53,6 +155,14 @@ export default function AIChatArea({ onClose }: AIChatAreaProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-primary shrink-0">
         <div className="flex items-center gap-2">
+          {view === "chat" && (
+            <button
+              onClick={handleBackToSessions}
+              className="flex items-center justify-center w-7 h-7 rounded-lg text-text-soft hover:text-text-sub hover:bg-bg-surface-weak transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+            </button>
+          )}
           <div className="w-7 h-7 rounded-full bg-linear-to-br from-teal-400 to-emerald-500 flex items-center justify-center">
             <StarFourIcon className="w-3.5 h-3.5 text-white" />
           </div>
@@ -67,15 +177,6 @@ export default function AIChatArea({ onClose }: AIChatAreaProps) {
         </div>
 
         <div className="flex items-center gap-1">
-          {messages.length > 0 && (
-            <button
-              onClick={() => setMessages([])}
-              title="Clear chat"
-              className="flex items-center justify-center w-7 h-7 rounded-lg text-text-soft hover:text-text-sub hover:bg-bg-surface-weak transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} />
-            </button>
-          )}
           <button
             onClick={onClose}
             title="Close"
@@ -86,108 +187,137 @@ export default function AIChatArea({ onClose }: AIChatAreaProps) {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
-        {messages.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center animate-fade-in">
-            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-teal-400 to-emerald-500 flex items-center justify-center shadow-md">
-              <StarFourIcon className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-semibold text-text-heading">
-                Chat with AI
-              </h3>
-              <p className="text-[11px] text-text-placeholder max-w-[220px] leading-3.5">
-                Ask me anything — I can help with questions, writing, and more.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {messages.map((msg) => {
-          const isUser = msg.role === "user";
-          const text = getMessageText(msg.parts);
-
-          return (
-            <div
-              key={msg.id}
-              className={`flex ${isUser ? "justify-end" : "justify-start"} animate-message-in`}
-            >
-              <div className={`relative max-w-[82%] ${isUser ? "mr-0.5" : "ml-0.5"}`}>
-                {/* Bubble tail */}
-                {isUser ? (
-                  <svg className="absolute -right-[6px] top-0 w-[6px] h-[11px] z-1" viewBox="0 0 7 13">
-                    <path d="M0 0C3.5 0.5 7 2 7 7C5.5 5 3.5 4.5 0 13V0Z" fill="#f0fdf4" />
-                  </svg>
-                ) : (
-                  <svg className="absolute -left-[6px] top-0 w-[6px] h-[11px] z-1" viewBox="0 0 7 13">
-                    <path d="M7 0C3.5 0.5 0 2 0 7C1.5 5 3.5 4.5 7 13V0Z" fill="#f7f9fb" />
-                  </svg>
-                )}
-
-                <div
-                  className={`text-xs leading-[17px] px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
-                    isUser
-                      ? "bg-bg-bubble-out text-text-main rounded-tl-xl rounded-bl-xl rounded-br-xl rounded-tr-[4px]"
-                      : "bg-bg-surface-weak text-text-heading rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-[4px]"
-                  }`}
-                >
-                  {isUser ? (
-                    <span className="whitespace-pre-wrap">{text}</span>
-                  ) : (
-                    <div className="ai-markdown prose prose-xs max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {text}
-                      </ReactMarkdown>
-                    </div>
-                  )}
+      {view === "sessions" ? (
+        <AIChatSessions
+          sessions={sessions}
+          loading={sessionsLoading}
+          onSelect={handleSelectSession}
+          onNew={handleNewChat}
+          onDelete={handleDeleteSession}
+        />
+      ) : (
+        <>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
+            {messages.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center animate-fade-in">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-teal-400 to-emerald-500 flex items-center justify-center shadow-md">
+                  <StarFourIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-sm font-semibold text-text-heading">
+                    Chat with AI
+                  </h3>
+                  <p className="text-[11px] text-text-placeholder max-w-[220px] leading-3.5">
+                    Ask me anything — I can help with questions, writing, and
+                    more.
+                  </p>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            )}
 
-        {/* Streaming indicator */}
-        {isStreaming && messages.length > 0 && messages[messages.length - 1].role === "user" && (
-          <div className="flex items-start animate-fade-in">
-            <div className="bg-bg-surface-weak rounded-xl px-3 py-2.5 shadow-sm flex items-center gap-[3px] ml-0.5">
-              <span className="typing-dot" />
-              <span className="typing-dot [animation-delay:0.2s]" />
-              <span className="typing-dot [animation-delay:0.4s]" />
+            {messages.map((msg) => {
+              const isUser = msg.role === "user";
+              const text = getMessageText(msg.parts);
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex ${isUser ? "justify-end" : "justify-start"} animate-message-in`}
+                >
+                  <div
+                    className={`relative max-w-[82%] ${isUser ? "mr-0.5" : "ml-0.5"}`}
+                  >
+                    {/* Bubble tail */}
+                    {isUser ? (
+                      <svg
+                        className="absolute -right-[6px] top-0 w-[6px] h-[11px] z-1"
+                        viewBox="0 0 7 13"
+                      >
+                        <path
+                          d="M0 0C3.5 0.5 7 2 7 7C5.5 5 3.5 4.5 0 13V0Z"
+                          fill="#f0fdf4"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="absolute -left-[6px] top-0 w-[6px] h-[11px] z-1"
+                        viewBox="0 0 7 13"
+                      >
+                        <path
+                          d="M7 0C3.5 0.5 0 2 0 7C1.5 5 3.5 4.5 7 13V0Z"
+                          fill="#f7f9fb"
+                        />
+                      </svg>
+                    )}
+
+                    <div
+                      className={`text-xs leading-[17px] px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+                        isUser
+                          ? "bg-bg-bubble-out text-text-main rounded-tl-xl rounded-bl-xl rounded-br-xl rounded-tr-[4px]"
+                          : "bg-bg-surface-weak text-text-heading rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-[4px]"
+                      }`}
+                    >
+                      {isUser ? (
+                        <span className="whitespace-pre-wrap">{text}</span>
+                      ) : (
+                        <div className="ai-markdown prose prose-xs max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {text}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Streaming indicator */}
+            {isStreaming &&
+              messages.length > 0 &&
+              messages[messages.length - 1].role === "user" && (
+                <div className="flex items-start animate-fade-in">
+                  <div className="bg-bg-surface-weak rounded-xl px-3 py-2.5 shadow-sm flex items-center gap-[3px] ml-0.5">
+                    <span className="typing-dot" />
+                    <span className="typing-dot [animation-delay:0.2s]" />
+                    <span className="typing-dot [animation-delay:0.4s]" />
+                  </div>
+                </div>
+              )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="flex items-center px-2.5 pt-1.5 pb-2.5">
+            <div className="flex-1 flex items-center gap-1 h-9 pl-3 pr-0.5 rounded-full border border-border-primary focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500/20 transition-all duration-200">
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Ask AI anything..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 text-xs text-text-main placeholder:text-text-soft bg-transparent outline-none leading-4"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                disabled={isStreaming}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isStreaming}
+                className="flex items-center justify-center w-7 h-7 rounded-full bg-brand-500 hover:bg-brand-600 text-white transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send className="w-3.5 h-3.5" strokeWidth={2} />
+              </button>
             </div>
           </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="flex items-center px-2.5 pt-1.5 pb-2.5">
-        <div className="flex-1 flex items-center gap-1 h-9 pl-3 pr-0.5 rounded-full border border-border-primary focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500/20 transition-all duration-200">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Ask AI anything..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 text-xs text-text-main placeholder:text-text-soft bg-transparent outline-none leading-4"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={isStreaming}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isStreaming}
-            className="flex items-center justify-center w-7 h-7 rounded-full bg-brand-500 hover:bg-brand-600 text-white transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send className="w-3.5 h-3.5" strokeWidth={2} />
-          </button>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

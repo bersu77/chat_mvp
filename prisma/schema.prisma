@@ -15,9 +15,10 @@ model User {
   image         String?
   emailVerified Boolean  @default(false)
 
-  sentMessages  Message[]
-  participants  ConversationParticipant[]
-  reactions     Reaction[]
+  sentMessages    Message[]
+  participants    ConversationParticipant[]
+  reactions       Reaction[]
+  aiChatSessions  AiChatSession[]
 }
 
 model VerificationToken {
@@ -99,4 +100,29 @@ model Reaction {
   user    User    @relation(fields: [userId], references: [id])
 
   @@unique([messageId, userId, emoji])
+}
+
+model AiChatSession {
+  id        String   @id @default(cuid())
+  title     String   @default("New chat")
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AiChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model AiChatMessage {
+  id        String   @id @default(cuid())
+  role      String   // "user" | "assistant"
+  content   String
+  sessionId String
+  createdAt DateTime @default(now())
+
+  session AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }
