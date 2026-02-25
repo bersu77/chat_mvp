@@ -52,9 +52,11 @@ interface SidebarProps {
   userName?: string;
   userEmail?: string;
   onAvatarUpdated?: () => void;
+  onAIClick?: () => void;
+  aiChatActive?: boolean;
 }
 
-export default function Sidebar({ userAvatar, userName, userEmail, onAvatarUpdated }: SidebarProps) {
+export default function Sidebar({ userAvatar, userName, userEmail, onAvatarUpdated, onAIClick, aiChatActive }: SidebarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -130,7 +132,12 @@ export default function Sidebar({ userAvatar, userName, userEmail, onAvatarUpdat
       <div className="flex flex-col items-center gap-5">
         <button
           title="AI"
-          className="flex items-center justify-center w-11 h-11 rounded-lg text-text-soft hover:bg-bg-senary/40 hover:text-text-sub transition-all duration-200"
+          onClick={onAIClick}
+          className={`flex items-center justify-center w-11 h-11 rounded-lg transition-all duration-200 ${
+            aiChatActive
+              ? "bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm"
+              : "text-text-soft hover:bg-bg-senary/40 hover:text-text-sub"
+          }`}
         >
           <StarFourIcon className="w-5 h-5 font-extrabold" />
         </button>

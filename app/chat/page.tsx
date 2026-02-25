@@ -7,6 +7,7 @@ import Sidebar from "./_components/sidebar";
 import TopBar from "./_components/top-bar";
 import ConversationList from "./_components/conversation-list";
 import ChatArea from "./_components/chat-area";
+import AIChatArea from "./_components/ai-chat-area";
 import { usePresenceChannel, type PresenceMember } from "@/lib/use-apinator";
 
 export interface UserInfo {
@@ -40,6 +41,7 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [activeOtherUser, setActiveOtherUser] = useState<UserInfo | null>(null);
   const [currentUserImage, setCurrentUserImage] = useState<string | null>(null);
+  const [aiChatOpen, setAIChatOpen] = useState(false);
 
   const { onlineUsers } = usePresenceChannel("presence-global");
 
@@ -119,6 +121,15 @@ export default function ChatPage() {
     [conversations]
   );
 
+  const handleBack = useCallback(() => {
+    setActiveConversationId(null);
+    setActiveOtherUser(null);
+  }, []);
+
+  const toggleAIChat = useCallback(() => {
+    setAIChatOpen((prev) => !prev);
+  }, []);
+
   if (status === "loading") {
     return (
       <div className="h-full w-full bg-bg-page flex items-center justify-center">
@@ -133,11 +144,6 @@ export default function ChatPage() {
 
   const currentUserId = (session.user as { id: string }).id;
 
-  const handleBack = useCallback(() => {
-    setActiveConversationId(null);
-    setActiveOtherUser(null);
-  }, []);
-
   return (
     <div className="h-full w-full bg-bg-page flex overflow-hidden">
       {/* Sidebar — hidden on mobile */}
@@ -147,13 +153,15 @@ export default function ChatPage() {
           userName={session.user?.name ?? undefined}
           userEmail={session.user?.email ?? undefined}
           onAvatarUpdated={fetchMyProfile}
+          onAIClick={toggleAIChat}
+          aiChatActive={aiChatOpen}
         />
       </div>
 
       <div className="flex-1 flex flex-col gap-2 md:gap-3 min-w-0 p-2 md:p-3 md:pl-0">
         {/* TopBar — hidden on mobile when viewing a chat */}
         <div className={`${activeConversationId ? "hidden md:block" : ""}`}>
-          <TopBar userImage={currentUserImage ?? undefined} currentUserId={currentUserId} onNotificationClick={selectConversation} />
+          <TopBar userImage={currentUserImage ?? undefined} currentUserId={currentUserId} onNotificationClick={selectConversation} onAIClick={toggleAIChat} />
         </div>
 
         <div className="flex-1 flex gap-2 md:gap-3 min-h-0 overflow-hidden">
@@ -187,6 +195,9 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* Floating AI Chat Popup */}
+      {aiChatOpen && <AIChatArea onClose={toggleAIChat} />}
     </div>
   );
 }

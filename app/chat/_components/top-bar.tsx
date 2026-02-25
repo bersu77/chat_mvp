@@ -6,6 +6,7 @@ import ChatCircleIcon from "./icons/chat-circle";
 import SearchIcon from "./icons/search";
 import SettingsGearIcon from "./icons/settings-gear";
 import CommandKIcon from "./icons/command-k";
+import StarFourIcon from "./icons/star-four";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNotificationChannel, type NotificationEvent } from "@/lib/use-apinator";
@@ -60,9 +61,10 @@ interface TopBarProps {
   userImage?: string;
   currentUserId?: string;
   onNotificationClick?: (conversationId: string) => void;
+  onAIClick?: () => void;
 }
 
-export default function TopBar({ userImage, currentUserId, onNotificationClick }: TopBarProps) {
+export default function TopBar({ userImage, currentUserId, onNotificationClick, onAIClick }: TopBarProps) {
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -160,6 +162,14 @@ export default function TopBar({ userImage, currentUserId, onNotificationClick }
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Mobile AI button */}
+            <button
+              onClick={onAIClick}
+              className="flex md:hidden items-center justify-center w-8 h-8 rounded-lg border border-border-primary hover:bg-bg-surface-weak transition-colors"
+            >
+              <StarFourIcon className="w-4 h-4 text-text-sub" />
+            </button>
+
             {/* Notification Bell */}
             <div className="relative" ref={bellRef}>
               <button

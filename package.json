@@ -10,11 +10,15 @@
     "postinstall": "npx prisma generate"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.47",
+    "@ai-sdk/gateway": "^3.0.55",
+    "@ai-sdk/react": "^3.0.101",
     "@apinator/client": "^2.0.0",
     "@apinator/server": "^2.0.0",
     "@prisma/adapter-pg": "7.0.0",
     "@prisma/client": "7.4.1",
     "@uploadthing/react": "^7.3.3",
+    "ai": "^6.0.99",
     "bcryptjs": "^3.0.2",
     "lucide-react": "^0.503.0",
     "next": "16.0.7",
@@ -22,6 +26,8 @@
     "pg": "^8.18.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "resend": "^6.9.2",
     "uploadthing": "^7.7.4"
   },

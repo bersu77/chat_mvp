@@ -139,3 +139,62 @@ body {
   animation: msg-highlight 1.5s ease-out;
   border-radius: 12px;
 }
+
+/* AI markdown bubble styles */
+.ai-markdown p { margin: 0.25em 0; }
+.ai-markdown p:first-child { margin-top: 0; }
+.ai-markdown p:last-child { margin-bottom: 0; }
+.ai-markdown ul, .ai-markdown ol { margin: 0.25em 0; padding-left: 1.25em; }
+.ai-markdown li { margin: 0.1em 0; }
+.ai-markdown code {
+  font-size: 0.9em;
+  background: rgba(0,0,0,0.06);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+.ai-markdown pre {
+  margin: 0.4em 0;
+  padding: 0.6em 0.75em;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+.ai-markdown pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+.ai-markdown h1, .ai-markdown h2, .ai-markdown h3 {
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+  line-height: 1.3;
+}
+.ai-markdown h1 { font-size: 1.1em; }
+.ai-markdown h2 { font-size: 1em; }
+.ai-markdown h3 { font-size: 0.95em; }
+.ai-markdown blockquote {
+  border-left: 2px solid var(--color-brand-500);
+  padding-left: 0.6em;
+  margin: 0.3em 0;
+  color: var(--color-text-sub);
+}
+.ai-markdown a {
+  color: var(--color-blue-500);
+  text-decoration: underline;
+}
+.ai-markdown table {
+  border-collapse: collapse;
+  margin: 0.4em 0;
+  font-size: 0.9em;
+}
+.ai-markdown th, .ai-markdown td {
+  border: 1px solid var(--color-border-primary);
+  padding: 0.3em 0.6em;
+}
+.ai-markdown th {
+  background: var(--color-bg-surface-weak);
+  font-weight: 600;
+}
