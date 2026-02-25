@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-500: #1e9a80;
+  --color-brand-600: #178a72;
+  --color-bg-page: #f3f3ee;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-weak: #f7f9fb;
+  --color-bg-tertiary: #f8f8f5;
+  --color-bg-senary: #e8e5df;
+  --color-bg-bubble-out: #f0fdf4;
+  --color-text-main: #111625;
+  --color-text-heading: #1c1c1c;
+  --color-text-sub: #596881;
+  --color-text-soft: #8796af;
+  --color-text-placeholder: #8b8b8b;
+  --color-text-success: #38c793;
+  --color-stroke-soft: #dee4ee;
+  --color-border-primary: #e8e5df;
+  --color-blue-500: #266df0;
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Chat message entrance animation */
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-message-in {
+  animation: message-in 0.3s ease-out both;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+/* Slide in from left */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.35s ease-out both;
+}
+
+/* iMessage-style typing dots — staggered wave */
+@keyframes typing-wave {
+  0% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  16% {
+    transform: translateY(-5px) scale(1.1);
+    opacity: 1;
+  }
+  33% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+}
+
+.typing-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #9ca3af;
+  animation: typing-wave 1.4s ease-in-out infinite;
+}
+
+/* Highlight flash for scroll-to-reply */
+@keyframes msg-highlight {
+  0% { background-color: rgba(59, 130, 246, 0.18); }
+  100% { background-color: transparent; }
+}
+.msg-highlight {
+  animation: msg-highlight 1.5s ease-out;
+  border-radius: 12px;
+}

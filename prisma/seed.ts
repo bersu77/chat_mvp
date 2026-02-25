@@ -1,0 +1,27 @@
+import { PrismaClient } from './generated/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient({ accelerateUrl: process.env.DATABASE_URL! });
+
+async function main() {
+  await prisma.user.create({
+    data: {
+      email: 'alice@example.com',
+      name: 'Alice',
+      password: await bcrypt.hash('password123', 10),
+    },
+  }),
+
+
+  console.log('Seeding completed.');
+}
+
+main()
+  .then(async () => {
+    await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
