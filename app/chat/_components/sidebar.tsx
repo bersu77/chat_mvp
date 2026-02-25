@@ -135,7 +135,7 @@ export default function Sidebar({ userAvatar, userName, userEmail, onAvatarUpdat
           onClick={onAIClick}
           className={`flex items-center justify-center w-11 h-11 rounded-lg transition-all duration-200 ${
             aiChatActive
-              ? "bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm"
+              ? "bg-[#F0FDF4] border border-brand-500 text-text-main"
               : "text-text-soft hover:bg-bg-senary/40 hover:text-text-sub"
           }`}
         >

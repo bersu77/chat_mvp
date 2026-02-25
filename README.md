@@ -20,6 +20,7 @@ A real-time chat application built with Next.js 16, React 19, and TypeScript.
 - **Forgot password** — Password reset flow with email link
 - **Profile avatars** — Upload and update your profile picture
 - **Skeleton loading** — Smooth loading states for conversation list and chat messages
+- **AI chat assistant** — Built-in AI chat popup powered by Claude (Anthropic), with streaming responses and markdown rendering
 - **Mobile responsive** — Full-screen chat on mobile with back navigation
 - **Image lightbox** — Click to view images full-screen
 
@@ -30,6 +31,7 @@ A real-time chat application built with Next.js 16, React 19, and TypeScript.
 - **Auth** — NextAuth 4 (JWT)
 - **Real-time** — Apinator WebSocket SDK
 - **File uploads** — UploadThing
+- **AI** — Vercel AI SDK + Anthropic Claude
 - **Email** — Resend
 - **Styling** — Tailwind CSS 4
 
@@ -50,6 +52,7 @@ A real-time chat application built with Next.js 16, React 19, and TypeScript.
    NEXT_PUBLIC_APINATOR_CLUSTER=
    UPLOADTHING_TOKEN=
    RESEND_API_KEY=
+   ANTHROPIC_API_KEY=
    NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
 
