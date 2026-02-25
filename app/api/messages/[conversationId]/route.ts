@@ -67,6 +67,12 @@ export async function GET(
           sender: { select: { name: true } },
         },
       },
+      reactions: {
+        select: {
+          emoji: true,
+          userId: true,
+        },
+      },
     },
   });
 
@@ -95,6 +101,23 @@ export async function GET(
       senderId: m.senderId,
       senderName: m.sender.name,
       senderImage: m.sender.image,
+      reactions: groupReactions(m.reactions),
     }))
   );
+}
+
+function groupReactions(
+  reactions: Array<{ emoji: string; userId: string }>
+): Array<{ emoji: string; count: number; userIds: string[] }> {
+  const map = new Map<string, string[]>();
+  for (const r of reactions) {
+    const arr = map.get(r.emoji) ?? [];
+    arr.push(r.userId);
+    map.set(r.emoji, arr);
+  }
+  return Array.from(map.entries()).map(([emoji, userIds]) => ({
+    emoji,
+    count: userIds.length,
+    userIds,
+  }));
 }

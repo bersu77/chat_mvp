@@ -56,7 +56,8 @@ export const ModelName = {
   PasswordResetToken: 'PasswordResetToken',
   Conversation: 'Conversation',
   ConversationParticipant: 'ConversationParticipant',
-  Message: 'Message'
+  Message: 'Message',
+  Reaction: 'Reaction'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -146,6 +147,17 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
+
+
+export const ReactionScalarFieldEnum = {
+  id: 'id',
+  emoji: 'emoji',
+  messageId: 'messageId',
+  userId: 'userId',
+  createdAt: 'createdAt'
+} as const
+
+export type ReactionScalarFieldEnum = (typeof ReactionScalarFieldEnum)[keyof typeof ReactionScalarFieldEnum]
 
 
 export const SortOrder = {

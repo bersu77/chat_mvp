@@ -11,6 +11,8 @@ A real-time chat application built with Next.js 16, React 19, and TypeScript.
 - **Typing indicators** — iMessage-style bouncing dots when the other person is typing
 - **Voice messages** — Record and send audio with a waveform player
 - **Reply, edit, delete, copy, forward** — Full message actions via context menu
+- **Emoji picker** — Built-in emoji picker in the input bar for sending emojis
+- **Emoji reactions** — React to messages with emojis (quick-react row + full picker), synced in real-time
 - **Link previews** — Auto-generated previews for URLs shared in chat
 - **Online presence** — See who's online in real-time
 - **Notifications** — Real-time notification bell with unread count (no polling)

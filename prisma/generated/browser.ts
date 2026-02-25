@@ -47,3 +47,8 @@ export type ConversationParticipant = Prisma.ConversationParticipantModel
  * 
  */
 export type Message = Prisma.MessageModel
+/**
+ * Model Reaction
+ * 
+ */
+export type Reaction = Prisma.ReactionModel

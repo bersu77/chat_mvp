@@ -132,11 +132,20 @@ export interface IncomingMessage {
   createdAt: string;
 }
 
+export interface ReactionEvent {
+  action: "added" | "removed";
+  messageId: string;
+  emoji: string;
+  userId: string;
+  userName: string;
+}
+
 export interface ChatChannelHandlers {
   onNewMessage?: (msg: IncomingMessage) => void;
   onMessageEdited?: (data: { id: string; content: string; isEdited: boolean }) => void;
   onMessageDeleted?: (data: { id: string }) => void;
   onMessagesRead?: (data: { conversationId: string; readBy: string }) => void;
+  onReactionUpdated?: (data: ReactionEvent) => void;
 }
 
 export function useChatChannel(
@@ -201,6 +210,15 @@ export function useChatChannel(
       }
     }
 
+    function onReaction(data: unknown) {
+      try {
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        handlersRef.current?.onReactionUpdated?.(parsed as ReactionEvent);
+      } catch (err) {
+        console.error("[chat] onReaction error:", err);
+      }
+    }
+
     function onTyping(data: unknown) {
       console.log("[chat] client-typing event received:", JSON.stringify(data));
       const { user } = data as { user: string };
@@ -222,6 +240,7 @@ export function useChatChannel(
       channel.bind("message-deleted", onDeleted);
       channel.bind("messages-read", onRead);
       channel.bind("client-typing", onTyping);
+      channel.bind("reaction-updated", onReaction);
 
       channel.bind("realtime:subscription_error", (err: unknown) => {
         console.error("[chat] subscription_error for", channelName, err);

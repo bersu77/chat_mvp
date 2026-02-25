@@ -26,7 +26,9 @@ import SearchIcon from "./icons/search";
 import PhoneIcon from "./icons/phone";
 import MicIcon from "./icons/mic";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useChatChannel, type IncomingMessage } from "@/lib/use-apinator";
+import { useChatChannel, type IncomingMessage, type ReactionEvent } from "@/lib/use-apinator";
+import data from "@emoji-mart/data";
+import Picker from "@emoji-mart/react";
 import { useUploadThing } from "@/lib/uploadthing";
 import type { UserInfo } from "../page";
 import ImageLightbox from "./image-lightbox";
@@ -35,6 +37,12 @@ import ForwardModal from "./forward-modal";
 import VoicePlayer from "./voice-player";
 
 type MessageType = "TEXT" | "IMAGE" | "VIDEO" | "AUDIO" | "FILE";
+
+interface ReactionGroup {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
 
 interface ReplyToData {
   id: string;
@@ -67,6 +75,7 @@ interface MessageData {
   _uploadProgress?: number;
   /** Client-only: stable key for React — survives temp→saved replacement */
   _key?: string;
+  reactions?: ReactionGroup[];
 }
 
 const headerActions: {
@@ -146,6 +155,8 @@ export default function ChatArea({
   const [editingMsg, setEditingMsg] = useState<MessageData | null>(null);
   const [forwardingMsg, setForwardingMsg] = useState<MessageData | null>(null);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactingToMsg, setReactingToMsg] = useState<MessageData | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,6 +168,8 @@ export default function ChatArea({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const reactionPickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Mark messages as read
@@ -167,6 +180,39 @@ export default function ChatArea({
       body: JSON.stringify({ conversationId: convId }),
     }).catch(() => {});
   }, []);
+
+  // Handle real-time reaction events from other users
+  const onReactionUpdated = useCallback(
+    (data: ReactionEvent) => {
+      if (data.userId === currentUserId) return;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== data.messageId) return m;
+          const reactions = [...(m.reactions ?? [])];
+          const idx = reactions.findIndex((r) => r.emoji === data.emoji);
+          if (data.action === "added") {
+            if (idx >= 0) {
+              const group = reactions[idx];
+              if (!group.userIds.includes(data.userId)) {
+                reactions[idx] = { ...group, count: group.count + 1, userIds: [...group.userIds, data.userId] };
+              }
+            } else {
+              reactions.push({ emoji: data.emoji, count: 1, userIds: [data.userId] });
+            }
+          } else {
+            if (idx >= 0) {
+              const group = reactions[idx];
+              const newUserIds = group.userIds.filter((id) => id !== data.userId);
+              if (newUserIds.length === 0) reactions.splice(idx, 1);
+              else reactions[idx] = { ...group, count: group.count - 1, userIds: newUserIds };
+            }
+          }
+          return { ...m, reactions };
+        })
+      );
+    },
+    [currentUserId]
+  );
 
   const { typingUser, sendTyping } = useChatChannel(
     conversationId,
@@ -216,6 +262,7 @@ export default function ChatArea({
         },
         [currentUserId]
       ),
+      onReactionUpdated,
     }
   );
 
@@ -347,6 +394,26 @@ export default function ChatArea({
     if (showAttachMenu) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showAttachMenu]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    if (showEmojiPicker) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showEmojiPicker]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (reactionPickerRef.current && !reactionPickerRef.current.contains(e.target as Node)) {
+        setReactingToMsg(null);
+      }
+    }
+    if (reactingToMsg) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [reactingToMsg]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -751,6 +818,40 @@ export default function ChatArea({
       }
     },
     []
+  );
+
+  // Toggle a reaction on a message (optimistic + API call)
+  const handleToggleReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          const reactions = [...(m.reactions ?? [])];
+          const idx = reactions.findIndex((r) => r.emoji === emoji);
+          if (idx >= 0) {
+            const group = reactions[idx];
+            if (group.userIds.includes(currentUserId)) {
+              const newUserIds = group.userIds.filter((id) => id !== currentUserId);
+              if (newUserIds.length === 0) reactions.splice(idx, 1);
+              else reactions[idx] = { ...group, count: group.count - 1, userIds: newUserIds };
+            } else {
+              reactions[idx] = { ...group, count: group.count + 1, userIds: [...group.userIds, currentUserId] };
+            }
+          } else {
+            reactions.push({ emoji, count: 1, userIds: [currentUserId] });
+          }
+          return { ...m, reactions };
+        })
+      );
+
+      await fetch("/api/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, emoji }),
+      });
+    },
+    [currentUserId]
   );
 
   // Scroll to a replied message and highlight it
@@ -1212,6 +1313,26 @@ export default function ChatArea({
                     </>
                   )}
                 </div>
+
+                {/* Reaction pills */}
+                {msg.reactions && msg.reactions.length > 0 && (
+                  <div className={`flex flex-wrap gap-1 mt-1 ${isIncoming ? "" : "justify-end"}`}>
+                    {msg.reactions.map((r) => (
+                      <button
+                        key={r.emoji}
+                        onClick={() => handleToggleReaction(msg.id, r.emoji)}
+                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
+                          r.userIds.includes(currentUserId)
+                            ? "bg-brand-500/10 border-brand-500/30 text-brand-600"
+                            : "bg-bg-surface-weak border-border-primary text-text-sub hover:bg-bg-senary"
+                        }`}
+                      >
+                        <span>{r.emoji}</span>
+                        <span className="text-[10px] font-medium">{r.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1315,12 +1436,31 @@ export default function ChatArea({
             </button>
 
             {/* Emoji */}
-            <button
-              title="Emoji"
-              className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-bg-surface-weak transition-colors"
-            >
-              <Smile className="w-3.5 h-3.5 text-text-sub" strokeWidth={1.8} />
-            </button>
+            <div className="relative" ref={emojiPickerRef}>
+              <button
+                title="Emoji"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-bg-surface-weak transition-colors"
+              >
+                <Smile className="w-3.5 h-3.5 text-text-sub" strokeWidth={1.8} />
+              </button>
+              {showEmojiPicker && (
+                <div className="absolute bottom-8 right-0 z-30 animate-fade-in">
+                  <Picker
+                    data={data}
+                    onEmojiSelect={(emoji: { native: string }) => {
+                      setInputValue((prev) => prev + emoji.native);
+                      setShowEmojiPicker(false);
+                      inputRef.current?.focus();
+                    }}
+                    theme="light"
+                    previewPosition="none"
+                    skinTonePosition="search"
+                    maxFrequentRows={2}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Attach — with dropdown menu */}
             <div className="relative" ref={attachMenuRef}>
@@ -1401,10 +1541,36 @@ export default function ChatArea({
           ref={contextMenuRef}
           className="fixed z-70 flex flex-col w-[160px] p-1.5 bg-white border border-border-primary rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.12)] animate-fade-in"
           style={{
-            top: Math.min(contextMenu.y, window.innerHeight - 220),
+            top: Math.min(contextMenu.y, window.innerHeight - 280),
             left: Math.min(contextMenu.x, window.innerWidth - 180),
           }}
         >
+          {/* Quick reaction row */}
+          <div className="flex items-center justify-around px-1 py-1.5 border-b border-border-primary mb-1">
+            {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  handleToggleReaction(contextMenu.msg.id, emoji);
+                  setContextMenu(null);
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-bg-surface-weak transition-colors text-base"
+              >
+                {emoji}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setReactingToMsg(contextMenu.msg);
+                setContextMenu(null);
+              }}
+              title="More emojis"
+              className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-bg-surface-weak transition-colors"
+            >
+              <Smile className="w-4 h-4 text-text-sub" strokeWidth={1.8} />
+            </button>
+          </div>
+
           <button
             onClick={() => handleReply(contextMenu.msg)}
             className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-bg-surface-weak transition-colors text-left"
@@ -1450,6 +1616,25 @@ export default function ChatArea({
               <span className="text-xs font-medium text-red-500">Delete</span>
             </button>
           )}
+        </div>
+      )}
+
+      {/* Reaction emoji picker (full picker from "more emojis" button) */}
+      {reactingToMsg && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/20" onMouseDown={() => setReactingToMsg(null)}>
+          <div ref={reactionPickerRef} onMouseDown={(e) => e.stopPropagation()}>
+            <Picker
+              data={data}
+              onEmojiSelect={(emoji: { native: string }) => {
+                handleToggleReaction(reactingToMsg.id, emoji.native);
+                setReactingToMsg(null);
+              }}
+              theme="light"
+              previewPosition="none"
+              skinTonePosition="search"
+              maxFrequentRows={2}
+            />
+          </div>
         </div>
       )}
 
