@@ -52,3 +52,13 @@ export type Message = Prisma.MessageModel
  * 
  */
 export type Reaction = Prisma.ReactionModel
+/**
+ * Model AiChatSession
+ * 
+ */
+export type AiChatSession = Prisma.AiChatSessionModel
+/**
+ * Model AiChatMessage
+ * 
+ */
+export type AiChatMessage = Prisma.AiChatMessageModel
